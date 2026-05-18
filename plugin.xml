@@ -24,10 +24,6 @@
       <string name="xhey_appid">$APPID</string>
       <string name="xhey_secret_key">$SECRET_KEY</string>
     </config-file>
-    <config-file target="app/src/main/res/values/strings.xml" parent="/resources">
-      <string name="xhey_appid">$APPID</string>
-      <string name="xhey_secret_key">$SECRET_KEY</string>
-    </config-file>
     <config-file target="app/src/main/res/values/xhey_plugin.xml" parent="/resources">
       <string name="xhey_appid">$APPID</string>
       <string name="xhey_secret_key">$SECRET_KEY</string>
@@ -40,6 +36,7 @@
     </config-file>
 
     <source-file src="src/android/XheyCamera.java" target-dir="src/org/xhey/cordova/camera" />
+    <source-file src="src/android/XheyCamera.java" target-dir="app/src/main/java/org/xhey/cordova/camera" />
   </platform>
 
   <platform name="ios">
