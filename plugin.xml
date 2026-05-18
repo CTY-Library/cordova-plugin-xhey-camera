@@ -13,6 +13,7 @@
   <platform name="android">
     <!-- The AAR and assets are embedded under src/android/libs and src/android/assets -->
     <lib-file src="src/android/libs/xheycamerasdk-release.aar" />
+    <lib-file src="src/android/libs/xheycamerasdk-release.aar" target="app/libs/xheycamerasdk-release.aar" />
     <resource-file src="src/android/assets/XheyCameraSDKAssets" target="app/src/main/assets/XheyCameraSDKAssets" />
 
     <!-- Write appid/secret into res values so they are not exposed in JS -->
@@ -36,6 +37,8 @@
     </config-file>
 
     <source-file src="src/android/XheyCamera.java" target-dir="src/org/xhey/cordova/camera" />
+    <source-file src="src/android/XheyCamera.java" target-dir="org/xhey/cordova/camera" />
+    <source-file src="src/android/XheyCamera.java" target-dir="src/main/java/org/xhey/cordova/camera" />
     <source-file src="src/android/XheyCamera.java" target-dir="app/src/main/java/org/xhey/cordova/camera" />
   </platform>
 
