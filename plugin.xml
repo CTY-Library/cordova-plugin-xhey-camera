@@ -36,6 +36,13 @@
       <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     </config-file>
 
+    <!-- Register native plugin class so Cordova can map JS exec to Java implementation -->
+    <config-file target="config.xml" parent="/*">
+      <feature name="XheyCamera">
+        <param name="android-package" value="org.xhey.cordova.camera.XheyCamera" />
+      </feature>
+    </config-file>
+
     <source-file src="src/android/XheyCamera.java" target-dir="src/org/xhey/cordova/camera" />
     <source-file src="src/android/XheyCamera.java" target-dir="org/xhey/cordova/camera" />
     <source-file src="src/android/XheyCamera.java" target-dir="src/main/java/org/xhey/cordova/camera" />
