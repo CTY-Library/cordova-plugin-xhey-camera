@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<plugin id="cordova-plugin-xhey-camera" version="0.0.1" xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
+  <name>XheyCamera</name>
+  <description>Cordova plugin wrapper for Xhey (今日水印) Camera SDK</description>
+  <license>MIT</license>
+  <variable name="APPID" />
+  <variable name="SECRET_KEY" />
+
+  <js-module src="www/xhey-camera.js" name="XheyCamera">
+    <clobbers target="XheyCamera" />
+  </js-module>
+
+  <platform name="android">
+    <!-- The AAR and assets are embedded under src/android/libs and src/android/assets -->
+    <lib-file src="src/android/libs/xheycamerasdk-release.aar" />
+    <resource-file src="src/android/assets/XheyCameraSDKAssets" target="app/src/main/assets/XheyCameraSDKAssets" />
+
+    <!-- Write appid/secret into res values so they are not exposed in JS -->
+    <!-- Keep legacy target for older cordova-android projects, and add explicit app/src path.
+         Also provide a separate values file named xhey_plugin.xml to avoid colliding with
+         existing strings.xml entries. Note: use underscore in filename (hyphen may be invalid
+         for Android resource filenames). -->
+    <config-file target="res/values/strings.xml" parent="/resources">
+      <string name="xhey_appid">$APPID</string>
+      <string name="xhey_secret_key">$SECRET_KEY</string>
+    </config-file>
+    <config-file target="app/src/main/res/values/strings.xml" parent="/resources">
+      <string name="xhey_appid">$APPID</string>
+      <string name="xhey_secret_key">$SECRET_KEY</string>
+    </config-file>
+    <config-file target="app/src/main/res/values/xhey_plugin.xml" parent="/resources">
+      <string name="xhey_appid">$APPID</string>
+      <string name="xhey_secret_key">$SECRET_KEY</string>
+    </config-file>
+
+    <config-file target="app/src/main/AndroidManifest.xml" parent="/manifest">
+      <uses-permission android:name="android.permission.CAMERA" />
+      <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+      <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    </config-file>
+
+    <source-file src="src/android/XheyCamera.java" target-dir="src/org/xhey/cordova/camera" />
+  </platform>
+
+  <platform name="ios">
+    <!-- iOS: place Xhey SDK framework/xcframework under src/ios/libs if available -->
+    <!-- Example: <framework src="src/ios/libs/XheyCameraSDK.xcframework" type="podspec" /> -->
+
+    <!-- Write APPID/SECRET_KEY into Info.plist so native code can read without exposing in JS -->
+    <config-file target="-" parent="CFBundleURLTypes">
+      <!-- placeholder: developers may adjust where to store keys; plugin will read from Info.plist by key names below -->
+    </config-file>
+    <config-file target="*-Info.plist" parent="/">
+      <key>xhey_appid</key>
+      <string>$APPID</string>
+      <key>xhey_secret_key</key>
+      <string>$SECRET_KEY</string>
+    </config-file>
+
+    <!-- iOS source files -->
+    <source-file src="src/ios/XheyCamera.m" />
+    <source-file src="src/ios/XheyCamera.h" />
+
+    <!-- request camera/location permissions via plist entries if needed -->
+    <config-file target="*-Info.plist" parent="NSCameraUsageDescription">
+      <string>需要使用相机进行拍照</string>
+    </config-file>
+    <config-file target="*-Info.plist" parent="NSLocationWhenInUseUsageDescription">
+      <string>需要定位以用于水印中的位置信息</string>
+    </config-file>
+  </platform>
+
+  <engines>
+    <engine name="cordova" version=">=9.0.0" />
+  </engines>
+</plugin>

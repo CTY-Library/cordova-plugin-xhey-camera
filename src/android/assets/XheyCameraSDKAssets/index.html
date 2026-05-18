@@ -1,0 +1,64 @@
+<!doctype html><html lang=""><head><meta charset="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/><link rel="icon" href="favicon.ico"/><title>XCamera-web</title><style>html,
+      body {
+        margin: 0;
+        box-sizing: border-box;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        user-select: none;
+        overflow: hidden;
+        background-color: transparent;
+        touch-action: none;
+        -ms-touch-action: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        animation: fadeInBackground 0.5s linear forwards;
+      }
+
+      #app {
+        height: 100%;
+        width: 100%;
+        padding: 0px;
+        margin: 0px;
+      }</style><script defer="defer" src="js/chunk-vendors.1ef18028.js"></script><script defer="defer" src="js/index.fb865daa.js"></script></head><body><noscript><strong>We're sorry but XCamera-web doesn't work properly without JavaScript enabled. Please enable it to continue.</strong></noscript><script>// 全局变量，标记是否已经加载 Vue App
+      window.isVueAppLoaded = false;
+
+      if (window.location.search.includes("enableClearBackgroundColor=true")) {
+        document.body.style.removeProperty("background-color");
+        document.body.style.backgroundColor = "transparent";
+      } else {
+          (function () {
+            let startTime = performance.now();
+            const duration = 500; // 动画时长（毫秒）
+
+            function fadeBackground(timestamp) {
+              if (
+                window.location.search.includes("enableClearBackgroundColor=true")
+              ) {
+                document.body.style.removeProperty("background-color");
+                document.body.style.backgroundColor = "transparent";
+                return;
+              }
+
+              if (window.isVueAppLoaded) {
+                document.body.style.backgroundColor = "white"; // 立刻设为白色
+                return;
+              }
+
+              let elapsed = timestamp - startTime;
+              let progress = Math.min(elapsed / duration, 1); // 进度 0~1
+
+              let bgColor = `rgba(255, 255, 255, ${progress})`;
+              document.body.style.backgroundColor = bgColor;
+
+              if (progress < 1) {
+                requestAnimationFrame(fadeBackground);
+              }
+            }
+
+            requestAnimationFrame(fadeBackground);
+          })();
+    }</script><div id="app"></div></body></html>

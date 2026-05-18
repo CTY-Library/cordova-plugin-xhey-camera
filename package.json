@@ -1,0 +1,11 @@
+{
+  "name": "cordova-plugin-xhey-camera",
+  "version": "0.0.1",
+  "description": "Cordova plugin wrapper for Xhey (今日水印) Camera SDK",
+  "cordova": {
+    "id": "cordova-plugin-xhey-camera",
+    "platforms": ["android"]
+  },
+  "keywords": ["cordova", "xhey", "camera", "watermark"],
+  "license": "MIT"
+}
