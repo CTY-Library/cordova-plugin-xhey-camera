@@ -2,12 +2,25 @@
 
 轻量的 Cordova 插件，封装今日水印（XheyCamera SDK）。
 
-快速安装
+快速安装（推荐）
 
 ```bash
-cordova plugin add /path/to/cordova-plugin-xhey-camera --variable APPID="your_appid" --variable SECRET_KEY="your_secret"
+cordova plugin add /path/to/cordova-plugin-xhey-camera
 ```
  
+在宿主应用的 `config.xml` 中通过 `preference` 设置凭证，插件及原生端会优先读取这些值：
+
+```xml
+<widget id="com.example.app" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+  <!-- 在这里添加： -->
+  <preference name="APPID" value="your_appid" />
+  <preference name="SECRET_KEY" value="your_secret" />
+</widget>
+```
+
+说明：
+- Android：原生层会优先从 Cordova `preference` 读取 `APPID`/`SECRET_KEY`，若未设置再回退到旧的资源字段或 manifest meta-data。原来自动写入 `res/values` 的内联注入已移除，建议使用 `preference`。
+- iOS：原生层会优先从 Cordova `preference` 读取 `APPID`/`SECRET_KEY`，若未设置再回退到 `Info.plist` 中的 `xhey_appid` / `xhey_secret_key`（如果你需要自动写入 Info.plist，请手动在宿主工程中添加对应键）。
 
 完整 JS 使用示例（按步骤）
 

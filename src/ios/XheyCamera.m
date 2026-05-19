@@ -36,10 +36,35 @@
     if (savedConfig) [merged addEntriesFromDictionary:savedConfig];
     if (options && [options isKindOfClass:[NSDictionary class]]) [merged addEntriesFromDictionary:options];
 
+    // Determine credentials: prefer runtime/merged config, then Cordova preferences, then Info.plist
+    NSString* appidVal = nil;
+    NSString* secretVal = nil;
+    if (merged[@"appid"]) appidVal = [NSString stringWithFormat:@"%@", merged[@"appid"]];
+    if (merged[@"secretKey"]) secretVal = [NSString stringWithFormat:@"%@", merged[@"secretKey"]];
+    if ((appidVal == nil || [appidVal length] == 0) || (secretVal == nil || [secretVal length] == 0)) {
+        @try {
+            if ([self.commandDelegate respondsToSelector:@selector(settings)]) {
+                NSDictionary* settings = [self.commandDelegate settings];
+                if ((appidVal == nil || [appidVal length] == 0) && settings[@"APPID"]) appidVal = [NSString stringWithFormat:@"%@", settings[@"APPID"]];
+                if ((secretVal == nil || [secretVal length] == 0) && settings[@"SECRET_KEY"]) secretVal = [NSString stringWithFormat:@"%@", settings[@"SECRET_KEY"]];
+            }
+        } @catch (NSException *ex) {
+            // ignore
+        }
+        if ((appidVal == nil || [appidVal length] == 0)) {
+            NSString* v = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"xhey_appid"];
+            if (v && [v length] > 0) appidVal = v;
+        }
+        if ((secretVal == nil || [secretVal length] == 0)) {
+            NSString* v2 = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"xhey_secret_key"];
+            if (v2 && [v2 length] > 0) secretVal = v2;
+        }
+    }
+
     // Build XHCameraViewConfig
     XHCameraViewConfig* cfg = [[XHCameraViewConfig alloc] init];
-    if (merged[@"appid"]) cfg.appid = [NSString stringWithFormat:@"%@", merged[@"appid"]];
-    if (merged[@"secretKey"]) cfg.secretKey = [NSString stringWithFormat:@"%@", merged[@"secretKey"]];
+    if (appidVal) cfg.appid = appidVal;
+    if (secretVal) cfg.secretKey = secretVal;
     if (merged[@"needPhotoConfirm"]) cfg.needPhotoConfirm = [merged[@"needPhotoConfirm"] boolValue];
     if (merged[@"maxImageCount"]) cfg.maxImageCount = [merged[@"maxImageCount"] integerValue];
     if (merged[@"groupWatermarkId"]) cfg.groupWatermarkId = [NSString stringWithFormat:@"%@", merged[@"groupWatermarkId"]];

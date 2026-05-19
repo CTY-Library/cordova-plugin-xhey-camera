@@ -119,13 +119,26 @@ public class XheyCamera extends CordovaPlugin {
                 // Use explicit class name so user can override if SDK package differs
                 intent.setClassName(activity.getPackageName(), activityClassName);
 
-                // credentials from resources (installed via plugin.xml)
-                int idApp = activity.getResources().getIdentifier("xhey_appid", "string", activity.getPackageName());
-                int idSec = activity.getResources().getIdentifier("xhey_secret_key", "string", activity.getPackageName());
+                // credentials: first try Cordova plugin preferences, then resources, then manifest meta-data
                 String appidVal = null;
                 String secretVal = null;
-                if (idApp != 0) appidVal = activity.getString(idApp);
-                if (idSec != 0) secretVal = activity.getString(idSec);
+                try {
+                    if (this.preferences != null) {
+                        appidVal = this.preferences.getString("APPID", null);
+                        secretVal = this.preferences.getString("SECRET_KEY", null);
+                    }
+                } catch (Exception e) {
+                    // ignore
+                }
+                // If not found in preferences, try resource strings (legacy behavior)
+                if (appidVal == null || appidVal.length() == 0) {
+                    int idApp = activity.getResources().getIdentifier("xhey_appid", "string", activity.getPackageName());
+                    if (idApp != 0) appidVal = activity.getString(idApp);
+                }
+                if (secretVal == null || secretVal.length() == 0) {
+                    int idSec = activity.getResources().getIdentifier("xhey_secret_key", "string", activity.getPackageName());
+                    if (idSec != 0) secretVal = activity.getString(idSec);
+                }
                 // Fallback: try reading from application meta-data in AndroidManifest (if present)
                 if ((appidVal == null || appidVal.length() == 0) || (secretVal == null || secretVal.length() == 0)) {
                     try {

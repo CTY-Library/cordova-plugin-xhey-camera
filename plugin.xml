@@ -3,8 +3,8 @@
   <name>XheyCamera</name>
   <description>Cordova plugin wrapper for Xhey (今日水印) Camera SDK</description>
   <license>MIT</license>
-  <variable name="APPID" />
-  <variable name="SECRET_KEY" />
+  <preference name="APPID" />
+  <preference name="SECRET_KEY" />
 
   <js-module src="www/xhey-camera.js" name="XheyCamera">
     <clobbers target="XheyCamera" />
@@ -12,23 +12,12 @@
 
   <platform name="android">
     <!-- The AAR and assets are embedded under src/android/libs and src/android/assets -->
-    <lib-file src="src/android/libs/xheycamerasdk-release.aar" />
     <lib-file src="src/android/libs/xheycamerasdk-release.aar" target="app/libs/xheycamerasdk-release.aar" />
     <resource-file src="src/android/assets/XheyCameraSDKAssets" target="app/src/main/assets/XheyCameraSDKAssets" />
 
-    <!-- Write appid/secret into res values so they are not exposed in JS -->
-    <!-- Keep legacy target for older cordova-android projects, and add explicit app/src path.
-         Also provide a separate values file named xhey_plugin.xml to avoid colliding with
-         existing strings.xml entries. Note: use underscore in filename (hyphen may be invalid
-         for Android resource filenames). -->
-    <config-file target="res/values/strings.xml" parent="/resources">
-      <string name="xhey_appid">$APPID</string>
-      <string name="xhey_secret_key">$SECRET_KEY</string>
-    </config-file>
-    <config-file target="app/src/main/res/values/xhey_plugin.xml" parent="/resources">
-      <string name="xhey_appid">$APPID</string>
-      <string name="xhey_secret_key">$SECRET_KEY</string>
-    </config-file>
+    <!-- Ensure a dedicated plugin values file exists for safer merging on projects without a strings.xml -->
+    <resource-file src="src/android/res/values/xhey_plugin.xml" target="app/src/main/res/values/xhey_plugin.xml" />
+    <!-- Removed inline <config-file> that wrote app/src/main/res/values/xhey_plugin.xml; use preferences/resource-file instead -->
 
     <config-file target="app/src/main/AndroidManifest.xml" parent="/manifest">
       <uses-permission android:name="android.permission.CAMERA" />
@@ -43,9 +32,7 @@
       </feature>
     </config-file>
 
-    <source-file src="src/android/XheyCamera.java" target-dir="src/org/xhey/cordova/camera" />
-    <source-file src="src/android/XheyCamera.java" target-dir="org/xhey/cordova/camera" />
-    <source-file src="src/android/XheyCamera.java" target-dir="src/main/java/org/xhey/cordova/camera" />
+    <!-- Use the modern cordova-android path; keep a single entry to avoid duplicate-copy errors. -->
     <source-file src="src/android/XheyCamera.java" target-dir="app/src/main/java/org/xhey/cordova/camera" />
   </platform>
 
@@ -53,16 +40,10 @@
     <!-- iOS: place Xhey SDK framework/xcframework under src/ios/libs if available -->
     <!-- Example: <framework src="src/ios/libs/XheyCameraSDK.xcframework" type="podspec" /> -->
 
-    <!-- Write APPID/SECRET_KEY into Info.plist so native code can read without exposing in JS -->
-    <config-file target="-" parent="CFBundleURLTypes">
-      <!-- placeholder: developers may adjust where to store keys; plugin will read from Info.plist by key names below -->
-    </config-file>
-    <config-file target="*-Info.plist" parent="/">
-      <key>xhey_appid</key>
-      <string>$APPID</string>
-      <key>xhey_secret_key</key>
-      <string>$SECRET_KEY</string>
-    </config-file>
+    <!-- Note: plugin reads credentials from Cordova preferences (`APPID` / `SECRET_KEY`).
+         Previously this wrote keys into Info.plist; that automatic injection was removed
+         to prefer explicit preferences in the host app's `config.xml`. If you need
+         Info.plist entries, add `xhey_appid` / `xhey_secret_key` to your app's Info.plist manually. -->
 
     <!-- iOS source files -->
     <source-file src="src/ios/XheyCamera.m" />
