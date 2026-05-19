@@ -7,24 +7,7 @@
 ```bash
 cordova plugin add /path/to/cordova-plugin-xhey-camera --variable APPID="your_appid" --variable SECRET_KEY="your_secret"
 ```
-
-快速示例
-
-```js
-// 可选：全局配置（非敏感配置）
-XheyCamera.configure({ groupWatermarkId: 'uuid' });
-
-// 单张拍照
-XheyCamera.takePhoto(function(result){ console.log(result); }, function(err){ console.error(err); });
-
-// 连拍（示例：3 张）
-XheyCamera.takeBurst(3, function(results){ console.log('images', results); }, function(err){ console.error(err); });
-
-// 预览控制
-XheyCamera.startPreview({ cameraPosition: 'back' }, ()=>{}, ()=>{});
-XheyCamera.switchCamera('front', ()=>{}, ()=>{});
-XheyCamera.stopPreview(()=>{}, ()=>{});
-```
+ 
 
 完整 JS 使用示例（按步骤）
 
