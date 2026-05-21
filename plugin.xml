@@ -65,6 +65,13 @@
     <source-file src="src/ios/XheyCamera.m" />
     <source-file src="src/ios/XheyCamera.h" />
 
+        <!-- Link XheyCamera SDK xcframework and resource bundle if present in repo -->
+        <!-- Place your XCFramework and resource bundle under `src/ios/libs/` with these names:
+          `XheyCameraSDK.xcframework` and `XheyCameraSDKResource.bundle`.
+          If you keep a different folder/name, adjust these paths accordingly. -->
+        <framework src="src/ios/libs/XheyCameraSDK.xcframework" custom="true" />
+        <resource-file src="src/ios/libs/XheyCameraSDKResource.bundle" />
+
     <!-- request camera/location permissions via plist entries if needed -->
     <config-file target="*-Info.plist" parent="NSCameraUsageDescription">
       <string>需要使用相机进行拍照</string>
@@ -73,6 +80,13 @@
       <string>需要定位以用于水印中的位置信息</string>
     </config-file>
   </platform>
+
+  <!-- Register iOS plugin class so Cordova maps JS exec to Objective-C implementation -->
+  <config-file target="config.xml" parent="/*">
+    <feature name="XheyCamera">
+      <param name="ios-package" value="XheyCamera" />
+    </feature>
+  </config-file>
 
   <engines>
     <engine name="cordova" version=">=9.0.0" />
