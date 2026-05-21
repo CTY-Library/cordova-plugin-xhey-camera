@@ -16,7 +16,30 @@ var XheyCamera = {
     options = options || {};
     if (typeof options.saveToGallery === 'undefined') options.saveToGallery = true;
     options.maxImageCount = count || 1;
-    exec(success, error, 'XheyCamera', 'takePhoto', [options]);
+    // indicate continuous shot intent to native SDK when possible
+    if (typeof options.continuousShot === 'undefined') options.continuousShot = true;
+
+    // Internal single-retry on TruePhoto-like failures: if first call fails
+    // with a TruePhoto error, retry once with skipTruePhoto.
+    var didRetry = false;
+    function onErrorOnce(err) {
+      try {
+        var msg = String(err || '');
+        if (!didRetry && (msg.indexOf('TruePhoto') !== -1 || msg.indexOf('NO_IMAGES_RETRIED') !== -1 || msg.indexOf('TIME') !== -1)) {
+          didRetry = true;
+          var retryOpts = Object.assign({}, options, { skipTruePhoto: true });
+          exec(success, function(err2){
+            // if still error, forward original error
+            error(err2);
+          }, 'XheyCamera', 'takePhoto', [retryOpts]);
+          return;
+        }
+      } catch (e) { }
+      // otherwise forward error
+      error(err);
+    }
+
+    exec(success, onErrorOnce, 'XheyCamera', 'takePhoto', [options]);
   }
   ,
 
