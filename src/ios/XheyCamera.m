@@ -45,8 +45,17 @@
         @try {
             if ([self.commandDelegate respondsToSelector:@selector(settings)]) {
                 NSDictionary* settings = [self.commandDelegate settings];
-                if ((appidVal == nil || [appidVal length] == 0) && settings[@"APPID"]) appidVal = [NSString stringWithFormat:@"%@", settings[@"APPID"]];
-                if ((secretVal == nil || [secretVal length] == 0) && settings[@"SECRET_KEY"]) secretVal = [NSString stringWithFormat:@"%@", settings[@"SECRET_KEY"]];
+                // support multiple common preference keys
+                if ((appidVal == nil || [appidVal length] == 0)) {
+                    if (settings[@"APP_ID"]) appidVal = [NSString stringWithFormat:@"%@", settings[@"APP_ID"]];
+                    else if (settings[@"APPID"]) appidVal = [NSString stringWithFormat:@"%@", settings[@"APPID"]];
+                    else if (settings[@"appid"]) appidVal = [NSString stringWithFormat:@"%@", settings[@"appid"]];
+                }
+                if ((secretVal == nil || [secretVal length] == 0)) {
+                    if (settings[@"SECRET_KEY"]) secretVal = [NSString stringWithFormat:@"%@", settings[@"SECRET_KEY"]];
+                    else if (settings[@"SECRETKEY"]) secretVal = [NSString stringWithFormat:@"%@", settings[@"SECRETKEY"]];
+                    else if (settings[@"secret_key"]) secretVal = [NSString stringWithFormat:@"%@", settings[@"secret_key"]];
+                }
             }
         } @catch (NSException *ex) {
             // ignore

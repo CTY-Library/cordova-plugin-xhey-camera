@@ -11,20 +11,35 @@
   </js-module>
 
   <platform name="android">
-    <!-- The AAR and assets are embedded under src/android/libs and src/android/assets -->
-    <lib-file src="src/android/libs/xheycamerasdk-release.aar" target="app/libs/xheycamerasdk-release.aar" />
-    <resource-file src="src/android/assets/XheyCameraSDKAssets" target="app/src/main/assets/XheyCameraSDKAssets" />
+    <!-- Gradle build extras for AAR dependency management -->
+    <framework src="src/android/libs/build-extras.gradle" custom="true" type="gradleReference" />
+    
+    <!-- Hook removed: build-extras.gradle already provides AAR repositories/dependencies -->
+    
+    <!-- Add the AAR SDK library as a lib-file for Gradle inclusion -->
+    <!-- Cordova will copy this to platforms/android/app/libs/ -->
+    <lib-file src="src/android/libs/xheycamerasdk-release.aar" />
+    
+    <!-- Copy SDK web assets into app www assets (recursively). -->
+    <asset src="src/android/assets/XheyCameraSDKAssets" target="XheyCameraSDKAssets" />
 
-    <!-- Ensure a dedicated plugin values file exists for safer merging on projects without a strings.xml -->
-    <resource-file src="src/android/res/values/xhey_plugin.xml" target="app/src/main/res/values/xhey_plugin.xml" />
-    <!-- Removed inline <config-file> that wrote app/src/main/res/values/xhey_plugin.xml; use preferences/resource-file instead -->
-
+   
     <config-file target="app/src/main/AndroidManifest.xml" parent="/manifest">
       <uses-permission android:name="android.permission.CAMERA" />
       <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
       <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+      <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+      <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+      <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     </config-file>
 
+    <!-- Ensure the SDK Activity is declared in the merged AndroidManifest so explicit
+         intents targeting its class can be resolved regardless of host package name. -->
+    <config-file target="app/src/main/AndroidManifest.xml" parent="/manifest/application">
+      <activity android:name="com.xhey.xheycamerasdk.CameraActivity" android:exported="false" />
+      <meta-data android:name="APPID" android:value="$APPID" />
+      <meta-data android:name="SECRET_KEY" android:value="$SECRET_KEY" />
+    </config-file>
     <!-- Register native plugin class so Cordova can map JS exec to Java implementation -->
     <config-file target="config.xml" parent="/*">
       <feature name="XheyCamera">

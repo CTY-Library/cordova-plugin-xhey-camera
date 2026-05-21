@@ -6,6 +6,7 @@ var XheyCamera = {
   // options.returnType: 'base64' | 'file' (default 'base64')
   takePhoto: function(success, error, options) {
     options = options || {};
+    if (typeof options.saveToGallery === 'undefined') options.saveToGallery = true;
     exec(success, error, 'XheyCamera', 'takePhoto', [options]);
   },
 
@@ -13,6 +14,7 @@ var XheyCamera = {
   // signature: takeBurst(count, success, error, options)
   takeBurst: function(count, success, error, options) {
     options = options || {};
+    if (typeof options.saveToGallery === 'undefined') options.saveToGallery = true;
     options.maxImageCount = count || 1;
     exec(success, error, 'XheyCamera', 'takePhoto', [options]);
   }

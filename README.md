@@ -117,8 +117,11 @@ function takePhotoAsync(options){
 
 返回数据说明
 
-- 成功时：`{ images: ["<base64>"...], fileUris: ["file://..."...], meta: { userCommentObject: {...} } }`。
-- 当 `returnType: 'file'` 时优先返回 `fileUris`（写入到应用缓存/临时目录）；若写入失败，可能回落返回 `images`（base64）。
+- 成功时：`{ images: ["<base64>"...], fileUris: ["content://..."|"file://..."...], galleryUris: ["content://..."...], downloadUris: ["content://..."...], downloadPaths: ["/storage/emulated/0/Download/XheyCamera/xxx.jpg"...], savedRelativePath: "Download/XheyCamera", saveErrors: ["..."], meta: { userCommentObject: {...} } }`。
+- 默认会保存到系统相册（可通过 `saveToGallery: false` 关闭）。
+- 默认目录：`Download/XheyCamera`（可用 `downloadRelativePath` 覆盖；兼容旧参数 `galleryRelativePath`）。
+- 当 `returnType: 'file'` 时优先返回 `fileUris`（优先为相册 `content://` 地址；失败时回落缓存 `file://`；仍失败再回落 `images` base64）。
+- 当 `saveToGallery=true` 且未成功写入共享存储时（Android 10+），会返回错误：`SAVE_TO_DOWNLOAD_FAILED`（不再静默成功）。
 
 
 

@@ -1,0 +1,13 @@
+// XheyCamera plugin Gradle extras
+// This file is automatically included in the app/build.gradle via the plugin.xml
+
+// Ensure flatDir repository is configured for local AAR files
+repositories {
+    flatDir {
+        dirs 'libs', 'src/main/libs'
+    }
+}
+
+dependencies {
+    implementation(name: 'xheycamerasdk-release', ext: 'aar')
+}
