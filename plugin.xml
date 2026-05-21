@@ -40,6 +40,7 @@
       <meta-data android:name="APPID" android:value="$APPID" />
       <meta-data android:name="SECRET_KEY" android:value="$SECRET_KEY" />
     </config-file>
+
     <!-- Register native plugin class so Cordova can map JS exec to Java implementation -->
     <config-file target="config.xml" parent="/*">
       <feature name="XheyCamera">

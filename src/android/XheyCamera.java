@@ -623,25 +623,34 @@ public class XheyCamera extends CordovaPlugin {
         String relativePath = getGalleryRelativePath();
 
         if ("file".equals(returnType)) {
-            String fileUri = saveToGallery ? saveToGallery(act, bytes, idx, outputFileName) : saveToCache(act, bytes, idx);
-            if (fileUri == null) {
-                // fallback to cache, then base64
-                fileUri = saveToCache(act, bytes, idx);
-            }
-            if (fileUri != null) {
-                fileUris.add(fileUri);
-                if (saveToGallery && fileUri.startsWith("content://")) {
-                    galleryUris.add(fileUri);
-                    downloadUris.add(fileUri);
-                    String pathHint = buildExternalAbsolutePathHint(relativePath, outputFileName);
-                    if (!isNullOrEmpty(pathHint)) downloadPaths.add(pathHint);
-                } else if (saveToGallery && fileUri.startsWith("file://")) {
-                    // Legacy fallback path may still succeed on older devices.
-                    downloadPaths.add(fileUri.substring("file://".length()));
+            // Try saving to gallery (Downloads/MediaStore) first as the primary behavior.
+            String fileUri = null;
+            if (saveToGallery) {
+                fileUri = saveToGallery(act, bytes, idx, outputFileName);
+                if (fileUri != null) {
+                    fileUris.add(fileUri);
+                    if (fileUri.startsWith("content://")) {
+                        galleryUris.add(fileUri);
+                        downloadUris.add(fileUri);
+                        String pathHint = buildExternalAbsolutePathHint(relativePath, outputFileName);
+                        if (!isNullOrEmpty(pathHint)) downloadPaths.add(pathHint);
+                    } else if (fileUri.startsWith("file://")) {
+                        downloadPaths.add(fileUri.substring("file://".length()));
+                    }
                 }
-            } else {
-                base64Images.add(Base64.encodeToString(bytes, Base64.NO_WRAP));
-                if (saveToGallery) saveErrors.add("save_failed:file_mode");
+            }
+
+            // If gallery save not requested or failed, fall back to cache file.
+            if (fileUri == null) {
+                String cacheUri = saveToCache(act, bytes, idx);
+                if (cacheUri != null) {
+                    fileUris.add(cacheUri);
+                    if (saveToGallery) saveErrors.add("save_failed:gallery_then_cache");
+                } else {
+                    // As last resort, return base64
+                    base64Images.add(Base64.encodeToString(bytes, Base64.NO_WRAP));
+                    if (saveToGallery) saveErrors.add("save_failed:file_mode");
+                }
             }
         } else {
             base64Images.add(Base64.encodeToString(bytes, Base64.NO_WRAP));
@@ -677,18 +686,7 @@ public class XheyCamera extends CordovaPlugin {
 
     private void launchCameraIntent(Intent intent) throws Exception {
         cordova.setActivityResultCallback(this);
-        try {
-            cordova.getActivity().startActivityForResult(intent, REQUEST_CODE);
-        } catch (android.content.ActivityNotFoundException anf) {
-            int lastDot2 = activityClassName.lastIndexOf('.');
-            if (lastDot2 > 0) {
-                String targetPackage = activityClassName.substring(0, lastDot2);
-                intent.setClassName(targetPackage, activityClassName);
-                cordova.getActivity().startActivityForResult(intent, REQUEST_CODE);
-            } else {
-                throw anf;
-            }
-        }
+        cordova.getActivity().startActivityForResult(intent, REQUEST_CODE);
     }
 
     private void ensureKeyMap() {
@@ -978,14 +976,10 @@ public class XheyCamera extends CordovaPlugin {
                 try {
                     cordova.getActivity().startActivity(intent);
                 } catch (android.content.ActivityNotFoundException anf) {
-                    int lastDot2 = activityClassName.lastIndexOf('.');
-                    if (lastDot2 > 0) {
-                        String targetPackage = activityClassName.substring(0, lastDot2);
-                        intent.setClassName(targetPackage, activityClassName);
-                        cordova.getActivity().startActivity(intent);
-                    } else {
-                        throw anf;
-                    }
+                    throw new android.content.ActivityNotFoundException(
+                        "Unable to launch " + activityClassName + " from host package " + activity.getPackageName() +
+                        ". Verify AndroidManifest merge and AAR packaging. Cause: " + anf.getMessage()
+                    );
                 }
                 callbackContext.success("preview_started");
             } catch (Exception e) {
