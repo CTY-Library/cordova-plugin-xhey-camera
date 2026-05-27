@@ -30,7 +30,7 @@ cordova plugin add /path/to/cordova-plugin-xhey-camera --variable APPID="your_ap
 ## 快速示例
 
 ```js
-// 单张（默认 base64）
+// 单张（默认 base64 编码，保存到相册）
 XheyCamera.takePhoto(res=>console.log(res), err=>console.error(err));
 
 // 连拍 3 张（返回 file URI）

@@ -125,6 +125,11 @@
     NSMutableArray* ucos = [NSMutableArray new];
     for (XHCapturedImage* ci in capturedImages) {
         if (ci.imageData) {
+            // Also save captured image data to the user's Photo Library
+            UIImage *__nullable imgForSave = [UIImage imageWithData:ci.imageData];
+            if (imgForSave) {
+                UIImageWriteToSavedPhotosAlbum(imgForSave, self, @selector(image:didFinishSavingWithError:contextInfo:), NULL);
+            }
             NSString* returnType = @"base64";
             if (pendingOptions && [pendingOptions isKindOfClass:[NSDictionary class]] && pendingOptions[@"returnType"]) {
                 returnType = [NSString stringWithFormat:@"%@", pendingOptions[@"returnType"]];
@@ -211,6 +216,14 @@
         [cameraViewController dismissViewControllerAnimated:YES completion:nil];
         presentedVC = nil;
     });
+}
+
+- (void)image:(UIImage *)image didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo {
+    if (error) {
+        NSLog(@"XheyCamera: failed saving image to Photos: %@", error);
+    } else {
+        NSLog(@"XheyCamera: image saved to Photos");
+    }
 }
 
 @end

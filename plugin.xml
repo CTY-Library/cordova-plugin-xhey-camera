@@ -77,7 +77,13 @@
       <string>需要使用相机进行拍照</string>
     </config-file>
     <config-file target="*-Info.plist" parent="NSLocationWhenInUseUsageDescription">
-      <string>需要定位以用于水印中的位置信息</string>
+      <string>需要定位以用于水印中的位置信息</string> 
+    </config-file>
+    <config-file target="*-Info.plist" parent="NSPhotoLibraryAddUsageDescription">
+      <string>用于将拍摄的照片保存到相册</string>
+    </config-file>
+    <config-file target="*-Info.plist" parent="NSPhotoLibraryUsageDescription">
+      <string>需要访问相册以保存或读取图片</string>
     </config-file>
   </platform>
 
