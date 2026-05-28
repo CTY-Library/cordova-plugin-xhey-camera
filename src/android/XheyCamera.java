@@ -64,8 +64,11 @@ public class XheyCamera extends CordovaPlugin {
     }
 
     private String resolveResourceDir(Activity activity) {
-        if (assetExists(activity, "XheyCameraSDKAssets/index.html")) {
-            return "file:///android_asset/XheyCameraSDKAssets";
+        // Prefer custom build placed inside the packaged SDK assets so we don't
+        // need to replace original asset directories. Check common locations
+        // under XheyCameraSDKAssets (MyXheyVue or dist), then fall back to root.
+        if (assetExists(activity, "www/XheyCameraSDKAssets/MyXheyVue/index.html")) {
+            return "file:///android_asset/www/XheyCameraSDKAssets/MyXheyVue";
         }
         if (assetExists(activity, "www/XheyCameraSDKAssets/index.html")) {
             return "file:///android_asset/www/XheyCameraSDKAssets";
