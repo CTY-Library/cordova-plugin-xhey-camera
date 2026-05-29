@@ -8,6 +8,34 @@
 </head>
 <body>
   <div id="app">Hello from custom Vue build (placeholder).</div>
+  <div style="position:fixed;left:12px;bottom:84px;z-index:999;background:rgba(255,255,255,0.95);padding:8px;border-radius:6px;">
+    <input id="wmText" placeholder="水印文字" style="width:160px;margin-right:6px;" />
+    <button id="captureBtn">拍照（带水印）</button>
+  </div>
+
+  <div id="previewPane" style="position:fixed;right:12px;bottom:12px;z-index:999;background:rgba(255,255,255,0.95);padding:8px;border-radius:6px;max-width:360px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div>拍照结果预览：</div>
+      <div style="font-size:12px;color:#666;">点击放大预览</div>
+    </div>
+    <img id="resultImg" style="width:320px;height:auto;display:block;margin-top:6px;cursor:pointer;border:1px solid #ddd;border-radius:4px;" />
+    <div style="margin-top:6px;display:flex;gap:6px;">
+      <button id="openLarge">放大</button>
+      <button id="saveBtn">保存到相册</button>
+    </div>
+  </div>
+
+  <!-- Large preview modal -->
+  <div id="largeModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:10000;align-items:center;justify-content:center;">
+    <div style="max-width:95%;max-height:95%;background:#000;padding:12px;border-radius:6px;display:flex;flex-direction:column;align-items:center;">
+      <img id="largeImg" style="max-width:100%;max-height:80vh;display:block;margin:0 auto;border-radius:4px;" />
+      <div style="text-align:center;margin-top:8px;">
+        <button id="largeSave">保存到相册</button>
+        <button id="largeClose">关闭</button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

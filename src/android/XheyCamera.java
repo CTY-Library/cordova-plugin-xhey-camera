@@ -33,7 +33,7 @@ public class XheyCamera extends CordovaPlugin {
     private CallbackContext callbackContext;
     private static final int REQUEST_CODE = 10001;
     private static final int REQUEST_PERMISSION_WRITE_STORAGE = 10002;
-    private String activityClassName = "com.xhey.xheycamerasdk.CameraActivity";
+    private String activityClassName = "org.xhey.cordova.camera.CustomCameraActivity";
     private JSONObject savedConfig = null;
     private Map<String,String> keyMap = null;
     private JSONObject lastOptions = null;
@@ -67,9 +67,10 @@ public class XheyCamera extends CordovaPlugin {
         // Prefer custom build placed inside the packaged SDK assets so we don't
         // need to replace original asset directories. Check common locations
         // under XheyCameraSDKAssets (MyXheyVue or dist), then fall back to root.
-        if (assetExists(activity, "www/XheyCameraSDKAssets/MyXheyVue/index.html")) {
-            return "file:///android_asset/www/XheyCameraSDKAssets/MyXheyVue";
-        }
+        // if (assetExists(activity, "www/XheyCameraSDKAssets/MyXheyVue/index.html")) {
+        //     return "file:///android_asset/www/XheyCameraSDKAssets/MyXheyVue";
+        // }
+        // todo 自定义UI 相机活动
         if (assetExists(activity, "www/XheyCameraSDKAssets/index.html")) {
             return "file:///android_asset/www/XheyCameraSDKAssets";
         }
@@ -1086,6 +1087,47 @@ public class XheyCamera extends CordovaPlugin {
                 callbackContext.success("switch_requested");
             } catch (Exception e) {
                 callbackContext.error(e.getMessage());
+            }
+            return true;
+        } else if ("saveBase64Image".equals(action)) {
+            // Save an arbitrary base64 image to gallery/cache and return the saved URI
+            JSONObject opts = args.optJSONObject(0);
+            if (opts == null) {
+                callbackContext.error("no_options");
+                return true;
+            }
+            String b64 = opts.optString("base64", opts.optString("image", null));
+            if (isNullOrEmpty(b64)) {
+                callbackContext.error("no_image_base64");
+                return true;
+            }
+            try {
+                byte[] bytes = decodeBase64ImageString(b64);
+                if (bytes == null || bytes.length == 0) {
+                    callbackContext.error("invalid_base64_image");
+                    return true;
+                }
+                Activity activity = cordova.getActivity();
+                String fileName = opts.optString("fileName", buildOutputFileName(0));
+                String uri = null;
+                try {
+                    uri = saveToGallery(activity, bytes, 0, fileName);
+                } catch (Exception e) {
+                    uri = null;
+                }
+                if (uri == null) {
+                    // fallback to cache file
+                    String cache = saveToCache(activity, bytes, 0);
+                    if (cache != null) {
+                        callbackContext.success(cache);
+                    } else {
+                        callbackContext.error("save_failed");
+                    }
+                } else {
+                    callbackContext.success(uri);
+                }
+            } catch (Exception e) {
+                callbackContext.error("save_error:" + e.getMessage());
             }
             return true;
         }
