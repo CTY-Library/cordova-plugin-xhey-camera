@@ -1,26 +1,93 @@
 #import "XheyCamera.h"
 #import <UIKit/UIKit.h>
+#import <objc/message.h>
 
-#import "XHCameraViewController.h"
-#import "XHCameraViewConfig.h"
-#import "XHCapturedImage.h"
-#import "XHUserComment.h"
-#import "XHCameraJsBridge.h"
+// Avoid compile-time dependency on XheyCameraSDK headers — use runtime lookup.
+@class XHCameraViewController;
+@class XHCameraViewConfig;
 
-@interface XheyCamera () <XHCameraViewControllerDelegate>
+@interface XheyCamera ()
 {
     NSDictionary* savedConfig;
     NSString* pendingCallbackId;
     UIViewController* presentedVC;
     NSDictionary* pendingOptions;
+    NSString* _mappid;
+    NSString* _msecretKey;
 }
 @end
 
 @implementation XheyCamera
 
+- (void)pluginInitialize {
+    [super pluginInitialize];
+    NSLog(@"XheyCamera: plugin initialized");
+    
+    // Try multiple ways to get settings
+    NSDictionary* settings1 = self.commandDelegate.settings;
+    NSDictionary* settings2 = nil;
+    if ([self.viewController respondsToSelector:@selector(settings)]) {
+        settings2 = [self.viewController settings];
+    }
+    
+    NSLog(@"XheyCamera: commandDelegate.settings = %@", settings1);
+    NSLog(@"XheyCamera: viewController.settings = %@", settings2);
+    
+    // Try to get APPID and SECRET_KEY from both sources with multiple key formats
+    _mappid = [settings1 objectForKey:@"APPID"];
+    if (!_mappid || [_mappid length] == 0) {
+        _mappid = [settings2 objectForKey:@"APPID"];
+    }
+    if (!_mappid || [_mappid length] == 0) {
+        _mappid = [settings1 objectForKey:@"appid"];
+    }
+    if (!_mappid || [_mappid length] == 0) {
+        _mappid = [settings2 objectForKey:@"appid"];
+    }
+    if (!_mappid || [_mappid length] == 0) {
+        _mappid = [settings1 objectForKey:@"APP_ID"];
+    }
+    if (!_mappid || [_mappid length] == 0) {
+        _mappid = [settings2 objectForKey:@"APP_ID"];
+    }
+    
+    _msecretKey = [settings1 objectForKey:@"SECRET_KEY"];
+    if (!_msecretKey || [_msecretKey length] == 0) {
+        _msecretKey = [settings2 objectForKey:@"SECRET_KEY"];
+    }
+    if (!_msecretKey || [_msecretKey length] == 0) {
+        _msecretKey = [settings1 objectForKey:@"secretKey"];
+    }
+    if (!_msecretKey || [_msecretKey length] == 0) {
+        _msecretKey = [settings2 objectForKey:@"secretKey"];
+    }
+    if (!_msecretKey || [_msecretKey length] == 0) {
+        _msecretKey = [settings1 objectForKey:@"SECRETKEY"];
+    }
+    if (!_msecretKey || [_msecretKey length] == 0) {
+        _msecretKey = [settings2 objectForKey:@"SECRETKEY"];
+    }
+    
+    // If still not found, try from Info.plist
+    if (!_mappid || [_mappid length] == 0) {
+        _mappid = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"xhey_appid"];
+        if (_mappid) {
+            NSLog(@"XheyCamera: found appid in Info.plist = %@", _mappid);
+        }
+    }
+    if (!_msecretKey || [_msecretKey length] == 0) {
+        _msecretKey = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"xhey_secret_key"];
+        if (_msecretKey) {
+            NSLog(@"XheyCamera: found secretKey in Info.plist = %@", _msecretKey);
+        }
+    }
+    
+    NSLog(@"XheyCamera: loaded from settings - APPID='%@', SECRET_KEY='%@'", _mappid, _msecretKey);
+}
+
 - (void)configure:(CDVInvokedUrlCommand*)command {
-    CDVPluginResult* result = nil;
     NSDictionary* cfg = [command.arguments firstObject];
+    CDVPluginResult* result = nil;
     if (cfg && [cfg isKindOfClass:[NSDictionary class]]) {
         savedConfig = cfg;
         result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"configured"];
@@ -36,61 +103,124 @@
     if (savedConfig) [merged addEntriesFromDictionary:savedConfig];
     if (options && [options isKindOfClass:[NSDictionary class]]) [merged addEntriesFromDictionary:options];
 
-    // Determine credentials: prefer runtime/merged config, then Cordova preferences, then Info.plist
-    NSString* appidVal = nil;
-    NSString* secretVal = nil;
-    if (merged[@"appid"]) appidVal = [NSString stringWithFormat:@"%@", merged[@"appid"]];
-    if (merged[@"secretKey"]) secretVal = [NSString stringWithFormat:@"%@", merged[@"secretKey"]];
-    if ((appidVal == nil || [appidVal length] == 0) || (secretVal == nil || [secretVal length] == 0)) {
-        @try {
-            if ([self.commandDelegate respondsToSelector:@selector(settings)]) {
-                NSDictionary* settings = [self.commandDelegate settings];
-                // support multiple common preference keys
-                if ((appidVal == nil || [appidVal length] == 0)) {
-                    if (settings[@"APP_ID"]) appidVal = [NSString stringWithFormat:@"%@", settings[@"APP_ID"]];
-                    else if (settings[@"APPID"]) appidVal = [NSString stringWithFormat:@"%@", settings[@"APPID"]];
-                    else if (settings[@"appid"]) appidVal = [NSString stringWithFormat:@"%@", settings[@"appid"]];
-                }
-                if ((secretVal == nil || [secretVal length] == 0)) {
-                    if (settings[@"SECRET_KEY"]) secretVal = [NSString stringWithFormat:@"%@", settings[@"SECRET_KEY"]];
-                    else if (settings[@"SECRETKEY"]) secretVal = [NSString stringWithFormat:@"%@", settings[@"SECRETKEY"]];
-                    else if (settings[@"secret_key"]) secretVal = [NSString stringWithFormat:@"%@", settings[@"secret_key"]];
-                }
-            }
-        } @catch (NSException *ex) {
-            // ignore
-        }
-        if ((appidVal == nil || [appidVal length] == 0)) {
-            NSString* v = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"xhey_appid"];
-            if (v && [v length] > 0) appidVal = v;
-        }
-        if ((secretVal == nil || [secretVal length] == 0)) {
-            NSString* v2 = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"xhey_secret_key"];
-            if (v2 && [v2 length] > 0) secretVal = v2;
-        }
+    // Debug log to check merged config
+    NSLog(@"XheyCamera: merged config = %@", merged);
+
+    // Resolve credentials from merged config, Cordova settings, or Info.plist
+    NSString* appidVal = [self _stringForKey:@"appid" inDict:merged];
+    NSString* secretVal = [self _stringForKey:@"secretKey" inDict:merged];
+    
+    // Debug log to check initial values
+    NSLog(@"XheyCamera: initial appid='%@', secretKey='%@'", appidVal, secretVal);
+
+    // Use values loaded from pluginInitialize if not provided in merged config
+    if ((appidVal == nil || [appidVal length] == 0) && _mappid && [_mappid length] > 0) {
+        appidVal = _mappid;
+        NSLog(@"XheyCamera: using appid from pluginInitialize = %@", appidVal);
+    }
+    if ((secretVal == nil || [secretVal length] == 0) && _msecretKey && [_msecretKey length] > 0) {
+        secretVal = _msecretKey;
+        NSLog(@"XheyCamera: using secretKey from pluginInitialize = %@", secretVal);
     }
 
-    // Build XHCameraViewConfig
-    XHCameraViewConfig* cfg = [[XHCameraViewConfig alloc] init];
-    if (appidVal) cfg.appid = appidVal;
-    if (secretVal) cfg.secretKey = secretVal;
-    if (merged[@"needPhotoConfirm"]) cfg.needPhotoConfirm = [merged[@"needPhotoConfirm"] boolValue];
-    if (merged[@"maxImageCount"]) cfg.maxImageCount = [merged[@"maxImageCount"] integerValue];
-    if (merged[@"groupWatermarkId"]) cfg.groupWatermarkId = [NSString stringWithFormat:@"%@", merged[@"groupWatermarkId"]];
-    if (merged[@"customInputItems"] && [merged[@"customInputItems"] isKindOfClass:[NSDictionary class]]) {
-        cfg.customInputItems = merged[@"customInputItems"];
+    // Log final values before proceeding
+    NSLog(@"XheyCamera: final appid='%@', secretKey='%@'", appidVal, secretVal);
+
+    // Check if credentials are available before proceeding
+    if (!appidVal || [appidVal length] == 0 || !secretVal || [secretVal length] == 0) {
+        // Report error immediately if credentials are missing
+        NSString *errorMsg = [NSString stringWithFormat:@"Missing required credentials: appid='%@', secretKey='%@'", 
+                              appidVal ? appidVal : @"MISSING", 
+                              secretVal ? secretVal : @"MISSING"];
+        NSLog(@"XheyCamera: %@", errorMsg);
+        
+        CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:errorMsg];
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        return;
     }
 
-    // Keep callback id to reply later
+    // Build SDK config object dynamically
+    id cfg = nil;
+    Class cfgClass = NSClassFromString(@"XHCameraViewConfig");
+    if (cfgClass) cfg = [[cfgClass alloc] init];
+    if (cfg) {
+        @try { 
+            if (appidVal && [appidVal isKindOfClass:[NSString class]] && [appidVal length] > 0) {
+                [cfg setValue:appidVal forKey:@"appid"]; 
+                NSLog(@"XheyCamera: successfully set appid in config");
+            } 
+        } @catch (NSException *e) {}
+        @try { 
+            if (secretVal && [secretVal isKindOfClass:[NSString class]] && [secretVal length] > 0) {
+                [cfg setValue:secretVal forKey:@"secretKey"]; 
+                NSLog(@"XheyCamera: successfully set secretKey in config");
+            } 
+        } @catch (NSException *e) {}
+        @try { 
+            if (merged[@"needPhotoConfirm"]) {
+                [cfg setValue:merged[@"needPhotoConfirm"] forKey:@"needPhotoConfirm"]; 
+            } 
+        } @catch (NSException *e) {}
+        @try { 
+            if (merged[@"maxImageCount"]) {
+                [cfg setValue:merged[@"maxImageCount"] forKey:@"maxImageCount"]; 
+            } 
+        } @catch (NSException *e) {}
+        @try { 
+            if (merged[@"groupWatermarkId"] && [merged[@"groupWatermarkId"] isKindOfClass:[NSString class]]) {
+                [cfg setValue:[NSString stringWithFormat:@"%@", merged[@"groupWatermarkId"]] forKey:@"groupWatermarkId"]; 
+            } 
+        } @catch (NSException *e) {}
+        @try { 
+            if (merged[@"customInputItems"] && [merged[@"customInputItems"] isKindOfClass:[NSDictionary class]]) {
+                [cfg setValue:merged[@"customInputItems"] forKey:@"customInputItems"]; 
+            } 
+        } @catch (NSException *e) {}
+    }
+
     pendingCallbackId = command.callbackId;
     pendingOptions = merged;
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        XHCameraViewController* vc = [[XHCameraViewController alloc] initWithConfig:cfg delegate:(id<XHCameraViewControllerDelegate>)self];
+        id vc = nil;
+        Class vcClass = NSClassFromString(@"XHCameraViewController");
+        SEL initSel = NSSelectorFromString(@"initWithConfig:delegate:");
+        if (vcClass) {
+            if ([vcClass instancesRespondToSelector:initSel]) {
+                id alloced = [vcClass alloc];
+                // Only proceed if both appid and secretKey are confirmed to be non-nil
+                if(cfg && appidVal && secretVal && [appidVal length] > 0 && [secretVal length] > 0) {
+                    NSLog(@"XheyCamera: initializing XHCameraViewController with config");
+                    vc = ((id (*)(id, SEL, id, id))objc_msgSend)(alloced, initSel, cfg, (id)self);
+                } else {
+                    // This shouldn't happen given our checks above, but just in case
+                    if (pendingCallbackId) {
+                        CDVPluginResult* pr = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"internal_error_missing_credentials"];
+                        [self.commandDelegate sendPluginResult:pr callbackId:pendingCallbackId];
+                        pendingCallbackId = nil;
+                        pendingOptions = nil;
+                    }
+                    return;
+                }
+            } else if ([vcClass instancesRespondToSelector:@selector(init)]) {
+                vc = [[vcClass alloc] init];
+            }
+        }
+
         presentedVC = vc;
-        UIViewController* root = UIApplication.sharedApplication.keyWindow.rootViewController;
+        UIViewController* root = [UIApplication sharedApplication].keyWindow.rootViewController;
         while (root.presentedViewController) root = root.presentedViewController;
-        [root presentViewController:vc animated:YES completion:nil];
+        if (vc && [root respondsToSelector:@selector(presentViewController:animated:completion:)]) {
+            [root presentViewController:vc animated:YES completion:nil];
+        } else {
+            // SDK not available
+            if (pendingCallbackId) {
+                CDVPluginResult* pr = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"sdk_not_available"];
+                [self.commandDelegate sendPluginResult:pr callbackId:pendingCallbackId];
+                pendingCallbackId = nil;
+                pendingOptions = nil;
+            }
+        }
     });
 }
 
@@ -98,10 +228,9 @@
 - (void)startPreview:(CDVInvokedUrlCommand*)command { [self takePhoto:command]; }
 
 - (void)stopPreview:(CDVInvokedUrlCommand*)command {
-    // Try JS bridge then notification
     Class js = NSClassFromString(@"XHCameraJsBridge");
     if (js && [js instancesRespondToSelector:@selector(stopPreviewWithCompletion:)]) {
-        // nothing to call statically — send notification fallback
+        // prefer runtime bridge
     }
     [[NSNotificationCenter defaultCenter] postNotificationName:@"XheyCloseCameraNotification" object:nil];
     CDVPluginResult* res = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"preview_stop_requested"];
@@ -110,32 +239,30 @@
 
 - (void)switchCamera:(CDVInvokedUrlCommand*)command {
     NSString* pos = [command.arguments firstObject]; if (![pos isKindOfClass:[NSString class]]) pos = @"back";
-    // Use notification to request switch
     [[NSNotificationCenter defaultCenter] postNotificationName:@"XheySwitchCameraNotification" object:@{@"cameraPosition": pos}];
     CDVPluginResult* res = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"switch_requested"];
     [self.commandDelegate sendPluginResult:res callbackId:command.callbackId];
 }
 
-#pragma mark - XHCameraViewControllerDelegate
+#pragma mark - Delegate callbacks (runtime-friendly)
 
-- (void)cameraViewController:(XHCameraViewController *)cameraViewController didCaptureStillImages:(NSArray<XHCapturedImage *> *)capturedImages {
-    // Build images array and meta
+- (void)cameraViewController:(id)cameraViewController didCaptureStillImages:(NSArray *)capturedImages {
     NSMutableArray* images = [NSMutableArray new];
     NSMutableArray* fileUris = [NSMutableArray new];
     NSMutableArray* ucos = [NSMutableArray new];
-    for (XHCapturedImage* ci in capturedImages) {
-        if (ci.imageData) {
-            // Also save captured image data to the user's Photo Library
-            UIImage *__nullable imgForSave = [UIImage imageWithData:ci.imageData];
-            if (imgForSave) {
-                UIImageWriteToSavedPhotosAlbum(imgForSave, self, @selector(image:didFinishSavingWithError:contextInfo:), NULL);
-            }
+
+    for (id ci in capturedImages) {
+        NSData *imgData = nil;
+        @try { imgData = [ci valueForKey:@"imageData"]; } @catch (NSException *e) { imgData = nil; }
+        if (imgData) {
+            UIImage *imgForSave = [UIImage imageWithData:imgData];
+            if (imgForSave) UIImageWriteToSavedPhotosAlbum(imgForSave, self, @selector(image:didFinishSavingWithError:contextInfo:), NULL);
+
             NSString* returnType = @"base64";
             if (pendingOptions && [pendingOptions isKindOfClass:[NSDictionary class]] && pendingOptions[@"returnType"]) {
                 returnType = [NSString stringWithFormat:@"%@", pendingOptions[@"returnType"]];
             }
             if ([returnType isEqualToString:@"file"]) {
-                // write to tmp
                 NSString* tmp = NSTemporaryDirectory();
                 NSString* sub = [tmp stringByAppendingPathComponent:@"xhey_camera"];
                 NSError* err = nil;
@@ -144,32 +271,34 @@
                 }
                 NSString* fname = [NSString stringWithFormat:@"%lld_%lu.jpg", (long long)([[NSDate date] timeIntervalSince1970]*1000), (unsigned long)[images count]];
                 NSString* path = [sub stringByAppendingPathComponent:fname];
-                BOOL wrote = [ci.imageData writeToFile:path atomically:YES];
+                BOOL wrote = NO;
+                @try { wrote = [imgData writeToFile:path atomically:YES]; } @catch (NSException *e) { wrote = NO; }
                 if (wrote) {
                     NSString* uri = [@"file://" stringByAppendingString:path];
                     [fileUris addObject:uri];
                 } else {
-                    // fallback to base64 if write failed
-                    NSString* b64 = [ci.imageData base64EncodedStringWithOptions:0];
+                    NSString* b64 = [((NSData*)imgData) base64EncodedStringWithOptions:0];
                     [images addObject:b64];
                 }
             } else {
-                NSString* b64 = [ci.imageData base64EncodedStringWithOptions:0];
+                NSString* b64 = [((NSData*)imgData) base64EncodedStringWithOptions:0];
                 [images addObject:b64];
             }
         }
-        XHUserComment* uc = ci.userComment;
+
+        id uc = nil;
+        @try { uc = [ci valueForKey:@"userComment"]; } @catch (NSException *e) { uc = nil; }
         if (uc) {
             NSMutableDictionary* d = [NSMutableDictionary new];
-            d[@"captureTimestampMs"] = @(uc.captureTimestampMs);
-            d[@"latitude"] = @(uc.latitude);
-            d[@"longitude"] = @(uc.longitude);
-            d[@"altitude"] = @(uc.altitude);
-            if (uc.antiFakeCode) d[@"antiFakeCode"] = uc.antiFakeCode;
-            if (uc.location) d[@"location"] = uc.location;
-            d[@"frontCamera"] = @(uc.frontCamera);
-            d[@"mockAddress"] = @(uc.mockAddress);
-            if (uc.rawJson) d[@"rawJson"] = uc.rawJson;
+            @try { id ts = [uc valueForKey:@"captureTimestampMs"]; if (ts) d[@"captureTimestampMs"] = ts; } @catch (NSException *e) {}
+            @try { id lat = [uc valueForKey:@"latitude"]; if (lat) d[@"latitude"] = lat; } @catch (NSException *e) {}
+            @try { id lng = [uc valueForKey:@"longitude"]; if (lng) d[@"longitude"] = lng; } @catch (NSException *e) {}
+            @try { id alt = [uc valueForKey:@"altitude"]; if (alt) d[@"altitude"] = alt; } @catch (NSException *e) {}
+            @try { id af = [uc valueForKey:@"antiFakeCode"]; if (af) d[@"antiFakeCode"] = af; } @catch (NSException *e) {}
+            @try { id loc = [uc valueForKey:@"location"]; if (loc) d[@"location"] = loc; } @catch (NSException *e) {}
+            @try { id front = [uc valueForKey:@"frontCamera"]; if (front) d[@"frontCamera"] = front; } @catch (NSException *e) {}
+            @try { id mock = [uc valueForKey:@"mockAddress"]; if (mock) d[@"mockAddress"] = mock; } @catch (NSException *e) {}
+            @try { id raw = [uc valueForKey:@"rawJson"]; if (raw) d[@"rawJson"] = raw; } @catch (NSException *e) {}
             [ucos addObject:d];
         }
     }
@@ -187,33 +316,38 @@
         pendingOptions = nil;
     }
 
-    // dismiss
     dispatch_async(dispatch_get_main_queue(), ^{
-        [cameraViewController dismissViewControllerAnimated:YES completion:nil];
+        if ([cameraViewController respondsToSelector:@selector(dismissViewControllerAnimated:completion:)]) {
+            [cameraViewController dismissViewControllerAnimated:YES completion:nil];
+        }
         presentedVC = nil;
     });
 }
 
-- (void)cameraViewControllerDidCancel:(XHCameraViewController *)cameraViewController {
+- (void)cameraViewControllerDidCancel:(id)cameraViewController {
     if (pendingCallbackId) {
         CDVPluginResult* pr = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"CANCELED"];
         [self.commandDelegate sendPluginResult:pr callbackId:pendingCallbackId];
         pendingCallbackId = nil;
     }
     dispatch_async(dispatch_get_main_queue(), ^{
-        [cameraViewController dismissViewControllerAnimated:YES completion:nil];
+        if ([cameraViewController respondsToSelector:@selector(dismissViewControllerAnimated:completion:)]) {
+            [cameraViewController dismissViewControllerAnimated:YES completion:nil];
+        }
         presentedVC = nil;
     });
 }
 
-- (void)cameraViewController:(XHCameraViewController *)cameraViewController didFailWithError:(NSError *)error {
+- (void)cameraViewController:(id)cameraViewController didFailWithError:(NSError *)error {
     if (pendingCallbackId) {
         CDVPluginResult* pr = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:[error localizedDescription]];
         [self.commandDelegate sendPluginResult:pr callbackId:pendingCallbackId];
         pendingCallbackId = nil;
     }
     dispatch_async(dispatch_get_main_queue(), ^{
-        [cameraViewController dismissViewControllerAnimated:YES completion:nil];
+        if ([cameraViewController respondsToSelector:@selector(dismissViewControllerAnimated:completion:)]) {
+            [cameraViewController dismissViewControllerAnimated:YES completion:nil];
+        }
         presentedVC = nil;
     });
 }
@@ -226,4 +360,20 @@
     }
 }
 
-@end
+#pragma mark - Helpers
+
+- (NSString*)_stringForKey:(NSString*)key inDict:(NSDictionary*)dict {
+    id v = dict[key];
+    if (!v) return nil;
+    if ([v isKindOfClass:[NSString class]]) return v;
+    return [NSString stringWithFormat:@"%@", v];
+}
+
+- (NSString*)_firstPresentStringForKeys:(NSArray*)keys inDict:(NSDictionary*)dict {
+    if (!dict) return nil;
+    for (id k in keys) {
+        id v = dict[k];
+        if (v) return [NSString stringWithFormat:@"%@", v];
+    }
+    return nil;
+}

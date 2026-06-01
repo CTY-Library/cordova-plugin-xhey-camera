@@ -58,14 +58,15 @@
     <!-- iOS: place Xhey SDK framework/xcframework under src/ios/libs if available -->
     <!-- Example: <framework src="src/ios/libs/XheyCameraSDK.xcframework" type="podspec" /> -->
 
-    <!-- Note: plugin reads credentials from Cordova preferences (`APPID` / `SECRET_KEY`).
-         Previously this wrote keys into Info.plist; that automatic injection was removed
-         to prefer explicit preferences in the host app's `config.xml`. If you need
-         Info.plist entries, add `xhey_appid` / `xhey_secret_key` to your app's Info.plist manually. -->
-
     <!-- iOS source files -->
     <source-file src="src/ios/XheyCamera.m" />
     <source-file src="src/ios/XheyCamera.h" />
+
+    <!-- Add plugin preferences to config.xml for iOS -->
+    <config-file target="config.xml" parent="/*">
+      <preference name="APPID" value="$APPID" />
+      <preference name="SECRET_KEY" value="$SECRET_KEY" />
+    </config-file>
 
         <!-- Link XheyCamera SDK xcframework and resource bundle if present in repo -->
         <!-- Place your XCFramework and resource bundle under `src/ios/libs/` with these names:
