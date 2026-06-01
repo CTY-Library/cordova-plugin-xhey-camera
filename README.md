@@ -51,6 +51,102 @@ XheyCamera.takeBurst(3, res=>console.log(res), err=>console.error(err), { return
 - `maxImageCount`: 连拍最大图片数。
 - `continuousShot`: 优化连拍模式（默认 `true`）。
 - `skipTruePhoto`: 测试/兼容标志，`true` 可绕过 SDK 的 TruePhoto 校验（仅调试）。
+- `useCustomUI`: `true|false`（默认 `false`）- 是否使用自定义水印UI。
+- `resourceDir`: `string` - 自定义UI资源目录路径（配合 `useCustomUI` 使用）。
+
+详细参数见 `www/xhey-camera.js`。
+
+## 自定义水印UI
+
+插件支持使用自定义的水印UI界面，通过以下参数控制：
+
+### 参数说明
+
+- **useCustomUI**: `boolean`（默认 `false`）
+  - 设置为 `true` 时启用自定义水印UI
+  - 默认使用SDK内置的UI界面
+  - **Android**: 当启用时，会使用 `CustomCameraActivity` 替代默认的 `CameraActivity`
+  - **iOS**: 通过 SDK 配置传递 `useCustomUI` 参数，SDK 会根据参数选择相应的UI
+
+- **resourceDir**: `string`
+  - 自定义UI资源目录的路径
+  - 如果不指定，会自动按优先级查找：
+    - Android: `www/XheyCameraSDKAssets/MyXheyVue/index.html` → `www/XheyCameraSDKAssets/index.html` → `XheyCameraSDKAssets`
+    - iOS: `XheyCameraSDKAssets/MyXheyVue/index.html` → `XheyCameraSDKAssets/index.html` → `XheyCameraSDKResource.bundle`
+
+### 工作原理
+
+**Android 端**：
+- `useCustomUI = false`: 使用 `com.xhey.xheycamerasdk.CameraActivity`（SDK默认Activity）
+- `useCustomUI = true`: 使用 `org.xhey.cordova.camera.CustomCameraActivity`（自定义Activity，支持JS桥接）
+- 自动解析资源目录，优先使用自定义UI资源
+
+**iOS 端**：
+- 通过 SDK 配置对象传递 `useCustomUI` 和 `resourceDir` 参数
+- SDK 内部根据参数选择相应的UI界面
+- 自动解析资源目录，优先使用自定义UI资源
+
+### 使用示例
+
+```javascript
+// 启用自定义水印UI拍照
+XheyCamera.takePhoto(
+  (result) => {
+    console.log('拍照成功', result);
+  },
+  (error) => {
+    console.error('拍照失败', error);
+  },
+  {
+    useCustomUI: true,
+    resourceDir: 'path/to/custom/ui',
+    returnType: 'base64',
+    saveToGallery: true
+  }
+);
+
+// 连拍模式使用自定义UI
+XheyCamera.takeBurst(
+  3,
+  (result) => {
+    console.log('连拍成功', result);
+  },
+  (error) => {
+    console.error('连拍失败', error);
+  },
+  {
+    useCustomUI: true,
+    resourceDir: 'path/to/custom/ui',
+    returnType: 'file'
+  }
+);
+
+// 预览模式使用自定义UI
+XheyCamera.startPreview(
+  {
+    useCustomUI: true,
+    resourceDir: 'path/to/custom/ui'
+  },
+  () => {
+    console.log('预览已启动');
+  },
+  (error) => {
+    console.error('预览启动失败', error);
+  }
+);
+```
+
+### 注意事项
+
+1. **默认行为**: `useCustomUI` 默认为 `false`，使用SDK内置UI，保持向后兼容性
+
+2. **资源目录**: 
+   - Android: 资源需要放在 `assets` 目录下
+   - iOS: 资源需要打包到应用bundle中
+
+3. **自定义UI开发**: 需要根据SDK文档开发自定义UI界面，确保与SDK接口兼容
+
+4. **测试建议**: 在启用自定义UI前，先使用默认UI测试基本功能正常
 
 详细参数见 `www/xhey-camera.js`。
 
@@ -85,4 +181,4 @@ adb logcat | grep -E "XheyCameraPlugin|XHCameraSDK|JsBridge|chromium"
 
 ---
 
-更新时间: 2026-05-21
+更新时间: 2026-06-01

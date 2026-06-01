@@ -4,17 +4,23 @@ var XheyCamera = {
   // 直接打开拍照页（使用安装时注入的 APPID/SECRET_KEY）
   // signature: takePhoto(success, error, options)
   // options.returnType: 'base64' | 'file' (default 'base64')
+  // options.useCustomUI: boolean (default false) - 是否使用自定义水印UI
+  // options.resourceDir: string - 自定义UI资源目录路径
   takePhoto: function(success, error, options) {
     options = options || {};
     if (typeof options.saveToGallery === 'undefined') options.saveToGallery = true;
+    if (typeof options.useCustomUI === 'undefined') options.useCustomUI = false;
     exec(success, error, 'XheyCamera', 'takePhoto', [options]);
   },
 
   // 连拍：count 为拍照张数，回调返回 Base64 字符串数组或 file url（由 options.returnType 控制）
   // signature: takeBurst(count, success, error, options)
+  // options.useCustomUI: boolean (default false) - 是否使用自定义水印UI
+  // options.resourceDir: string - 自定义UI资源目录路径
   takeBurst: function(count, success, error, options) {
     options = options || {};
     if (typeof options.saveToGallery === 'undefined') options.saveToGallery = true;
+    if (typeof options.useCustomUI === 'undefined') options.useCustomUI = false;
     options.maxImageCount = count || 1;
     // indicate continuous shot intent to native SDK when possible
     if (typeof options.continuousShot === 'undefined') options.continuousShot = true;
@@ -44,8 +50,11 @@ var XheyCamera = {
   ,
 
   // 启动实时预览（在宿主页面上会打开 SDK 的预览界面）
+  // options.useCustomUI: boolean (default false) - 是否使用自定义水印UI
+  // options.resourceDir: string - 自定义UI资源目录路径
   startPreview: function(options, success, error) {
     options = options || {};
+    if (typeof options.useCustomUI === 'undefined') options.useCustomUI = false;
     exec(success, error, 'XheyCamera', 'startPreview', [options]);
   },
 

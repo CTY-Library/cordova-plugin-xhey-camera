@@ -176,6 +176,36 @@
                 [cfg setValue:merged[@"customInputItems"] forKey:@"customInputItems"]; 
             } 
         } @catch (NSException *e) {}
+        @try { 
+            if (merged[@"useCustomUI"]) {
+                [cfg setValue:merged[@"useCustomUI"] forKey:@"useCustomUI"]; 
+            } 
+        } @catch (NSException *e) {}
+        @try { 
+            BOOL useCustomUI = NO;
+            if (merged[@"useCustomUI"]) {
+                useCustomUI = [merged[@"useCustomUI"] boolValue];
+            }
+            
+            NSString* resourceDir = nil;
+            if (useCustomUI) {
+                // Use custom UI path when useCustomUI is true
+                resourceDir = merged[@"resourceDir"];
+                if (!resourceDir || [resourceDir length] == 0) {
+                    resourceDir = [self resolveResourceDir];
+                }
+                NSLog(@"XheyCamera: using custom UI resourceDir = %@", resourceDir);
+            } else {
+                // Use default official path when useCustomUI is false
+                resourceDir = @"";
+                NSLog(@"XheyCamera: using default official resourceDir");
+            }
+            
+            if (resourceDir && [resourceDir isKindOfClass:[NSString class]]) {
+                [cfg setValue:resourceDir forKey:@"resourceDir"];
+                NSLog(@"XheyCamera: resourceDir = %@", resourceDir);
+            } 
+        } @catch (NSException *e) {}
     }
 
     pendingCallbackId = command.callbackId;
@@ -377,3 +407,39 @@
     }
     return nil;
 }
+
+- (NSString*)resolveResourceDir {
+    NSBundle* bundle = [NSBundle mainBundle];
+    
+    NSLog(@"XheyCamera: resolveResourceDir: checking custom UI locations");
+    
+    // Priority 1: Custom UI in MyXheyVue directory
+    NSString* myXheyVuePath = [bundle pathForResource:@"index.html" ofType:nil inDirectory:@"XheyCameraSDKAssets/MyXheyVue"];
+    if (myXheyVuePath) {
+        NSString* dirPath = [myXheyVuePath stringByDeletingLastPathComponent];
+        NSLog(@"XheyCamera: resolveResourceDir: found MyXheyVue -> %@", dirPath);
+        return dirPath;
+    }
+    NSLog(@"XheyCamera: resolveResourceDir: MyXheyVue not found");
+    
+    // Priority 2: Custom UI in root XheyCameraSDKAssets directory
+    NSString* rootIndexPath = [bundle pathForResource:@"index.html" ofType:nil inDirectory:@"XheyCameraSDKAssets"];
+    if (rootIndexPath) {
+        NSString* dirPath = [rootIndexPath stringByDeletingLastPathComponent];
+        NSLog(@"XheyCamera: resolveResourceDir: found root XheyCameraSDKAssets -> %@", dirPath);
+        return dirPath;
+    }
+    NSLog(@"XheyCamera: resolveResourceDir: root XheyCameraSDKAssets not found");
+    
+    // Priority 3: Default SDK bundle path
+    NSString* bundlePath = [bundle pathForResource:@"XheyCameraSDKResource" ofType:@"bundle"];
+    if (bundlePath) {
+        NSLog(@"XheyCamera: resolveResourceDir: using default SDK bundle -> %@", bundlePath);
+        return bundlePath;
+    }
+    
+    // Fallback: empty string (SDK will use internal defaults)
+    NSLog(@"XheyCamera: resolveResourceDir: no custom UI found, using SDK defaults");
+    return @"";
+}
+@end
