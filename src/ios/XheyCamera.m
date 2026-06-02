@@ -187,23 +187,30 @@
                 useCustomUI = [merged[@"useCustomUI"] boolValue];
             }
             
-            NSString* resourceDir = nil;
+            NSString* bundlePath = nil;
             if (useCustomUI) {
                 // Use custom UI path when useCustomUI is true
-                resourceDir = merged[@"resourceDir"];
-                if (!resourceDir || [resourceDir length] == 0) {
-                    resourceDir = [self resolveResourceDir];
+                bundlePath = merged[@"resourceDir"];
+                if (!bundlePath || [bundlePath length] == 0) {
+                    bundlePath = [self resolveResourceDir];
                 }
-                NSLog(@"XheyCamera: using custom UI resourceDir = %@", resourceDir);
+                NSLog(@"XheyCamera: using custom UI bundlePath = %@", bundlePath);
             } else {
-                // Use default official path when useCustomUI is false
-                resourceDir = @"";
-                NSLog(@"XheyCamera: using default official resourceDir");
+                // Use SDK bundle path when useCustomUI is false
+                bundlePath = [self resolveSDKBundleResourceDir];
+                NSLog(@"XheyCamera: using default official bundlePath = %@", bundlePath);
             }
             
-            if (resourceDir && [resourceDir isKindOfClass:[NSString class]]) {
-                [cfg setValue:resourceDir forKey:@"resourceDir"];
-                NSLog(@"XheyCamera: resourceDir = %@", resourceDir);
+            if (bundlePath && [bundlePath isKindOfClass:[NSString class]] && [bundlePath length] > 0) {
+                NSString* indexPath = [bundlePath stringByAppendingPathComponent:@"data/index.html"];
+                BOOL indexExists = [[NSFileManager defaultManager] fileExistsAtPath:indexPath];
+                NSLog(@"XheyCamera: bundlePath=%@, data/index.html exists=%@", bundlePath, indexExists ? @"YES" : @"NO");
+
+                // New SDK (1.2.327+) expects bundlePath.
+                @try { [cfg setValue:bundlePath forKey:@"bundlePath"]; } @catch (NSException *e) {}
+
+                // Keep legacy compatibility for older SDKs if they still read resourceDir.
+                @try { [cfg setValue:bundlePath forKey:@"resourceDir"]; } @catch (NSException *e) {}
             } 
         } @catch (NSException *e) {}
     }
@@ -239,44 +246,7 @@
 
         presentedVC = vc;
         
-        // Updated logic to handle iOS 13+ SceneDelegate
-        UIViewController* root = nil;
-        UIWindow* window = nil;
-        
-        // Try to get window from Cordova view controller first
-        if (self.viewController.view.window) {
-            window = self.viewController.view.window;
-        } else {
-            // Fallback to key window
-            window = [UIApplication sharedApplication].keyWindow;
-        }
-        
-        // Handle iOS 13+ SceneDelegate
-        if (@available(iOS 13.0, *)) {
-            UIScene *scene = [[UIApplication sharedApplication] connectedScenes].firstObject;
-            if (scene && [scene isKindOfClass:[UIWindowScene class]]) {
-                UIWindowScene *windowScene = (UIWindowScene *)scene;
-                // Find the window with the right scene
-                for (UIWindow *candidateWindow in windowScene.windows) {
-                    if (candidateWindow.isKeyWindow) {
-                        window = candidateWindow;
-                        break;
-                    }
-                }
-            }
-        }
-        
-        if (window) {
-            root = window.rootViewController;
-        } else {
-            // Fallback to old method
-            root = [UIApplication sharedApplication].keyWindow.rootViewController;
-        }
-        
-        // Navigate to the topmost presented view controller
-        while (root.presentedViewController) {
-            root = root.presentedViewController;
-        }
+        UIViewController* root = [self getRootViewController];
         
         if (vc && [root respondsToSelector:@selector(presentViewController:animated:completion:)]) {
             [root presentViewController:vc animated:YES completion:nil];
@@ -295,40 +265,60 @@
 - (void)takeBurst:(CDVInvokedUrlCommand*)command { [self takePhoto:command]; }
 - (void)startPreview:(CDVInvokedUrlCommand*)command { [self takePhoto:command]; }
 
-// Helper method to get root view controller supporting iOS 13+
-- (UIViewController*)getRootViewController {
-    UIViewController* rootViewController = nil;
-    
-    // Try to get window from Cordova view controller first
-    UIWindow* window = nil;
-    if (self.viewController.view.window) {
-        window = self.viewController.view.window;
-    } else {
-        // Fallback to key window
-        window = [UIApplication sharedApplication].keyWindow;
-    }
-    
-    // Handle iOS 13+ SceneDelegate
-    if (@available(iOS 13.0, *)) {
-        for (UIScene *scene in [[UIApplication sharedApplication] connectedScenes]) {
-            if ([scene isKindOfClass:[UIWindowScene class]] && [scene.role isEqualToString:UISceneSessionRoleApplication]) {
-                UIWindowScene *windowScene = (UIWindowScene *)scene;
-                // Find the window with the right scene
-                for (UIWindow *candidateWindow in windowScene.windows) {
-                    if (candidateWindow.isKeyWindow || (candidateWindow.rootViewController != nil)) {
-                        window = candidateWindow;
-                        break;
-                    }
+// Resolve a valid window without directly referencing UIScene types.
+- (UIWindow*)getBestWindow {
+    UIWindow* window = self.viewController.view.window;
+    if (window) return window;
+
+    UIApplication* app = [UIApplication sharedApplication];
+    if (app.keyWindow) return app.keyWindow;
+
+    SEL connectedScenesSel = NSSelectorFromString(@"connectedScenes");
+    if ([app respondsToSelector:connectedScenesSel]) {
+        NSSet* scenes = ((NSSet* (*)(id, SEL))objc_msgSend)(app, connectedScenesSel);
+        Class windowSceneClass = NSClassFromString(@"UIWindowScene");
+        SEL windowsSel = NSSelectorFromString(@"windows");
+
+        for (id scene in scenes) {
+            if (windowSceneClass && ![scene isKindOfClass:windowSceneClass]) continue;
+            if (![scene respondsToSelector:windowsSel]) continue;
+
+            NSArray* windows = ((NSArray* (*)(id, SEL))objc_msgSend)(scene, windowsSel);
+            for (id candidate in windows) {
+                if ([candidate isKindOfClass:[UIWindow class]] && ((UIWindow*)candidate).isKeyWindow) {
+                    return (UIWindow*)candidate;
+                }
+            }
+            for (id candidate in windows) {
+                if ([candidate isKindOfClass:[UIWindow class]] && ((UIWindow*)candidate).rootViewController) {
+                    return (UIWindow*)candidate;
                 }
             }
         }
     }
+
+    id appDelegate = app.delegate;
+    if (appDelegate && [appDelegate respondsToSelector:@selector(window)]) {
+        id delegateWindow = ((id (*)(id, SEL))objc_msgSend)(appDelegate, @selector(window));
+        if ([delegateWindow isKindOfClass:[UIWindow class]]) {
+            return (UIWindow*)delegateWindow;
+        }
+    }
+
+    return nil;
+}
+
+// Helper method to get root view controller supporting iOS 13+
+- (UIViewController*)getRootViewController {
+    UIViewController* rootViewController = nil;
+
+    UIWindow* window = [self getBestWindow];
     
     if (window) {
         rootViewController = window.rootViewController;
     } else {
         // Fallback to old method
-        rootViewController = [UIApplication sharedApplication].keyWindow.rootViewController;
+        rootViewController = self.viewController;
     }
     
     // Navigate to the topmost presented view controller
@@ -338,7 +328,7 @@
         }
     }
     
-    return rootViewController ?: [UIApplication sharedApplication].keyWindow.rootViewController;
+    return rootViewController ?: self.viewController;
 }
 
 - (void)stopPreview:(CDVInvokedUrlCommand*)command {
@@ -515,15 +505,24 @@
     }
     NSLog(@"XheyCamera: resolveResourceDir: root XheyCameraSDKAssets not found");
     
-    // Priority 3: Default SDK bundle path
-    NSString* bundlePath = [bundle pathForResource:@"XheyCameraSDKResource" ofType:@"bundle"];
-    if (bundlePath) {
-        NSLog(@"XheyCamera: resolveResourceDir: using default SDK bundle -> %@", bundlePath);
+    // Fallback: use default SDK bundle path
+    NSString* bundlePath = [self resolveSDKBundleResourceDir];
+    if (bundlePath && [bundlePath length] > 0) {
+        NSLog(@"XheyCamera: resolveResourceDir: fallback to SDK bundle -> %@", bundlePath);
         return bundlePath;
     }
-    
-    // Fallback: empty string (SDK will use internal defaults)
-    NSLog(@"XheyCamera: resolveResourceDir: no custom UI found, using SDK defaults");
-    return @"";
+
+    // No valid resource path found
+    NSLog(@"XheyCamera: resolveResourceDir: no valid resource path found");
+    return nil;
+}
+
+- (NSString*)resolveSDKBundleResourceDir {
+    NSBundle* bundle = [NSBundle mainBundle];
+    NSString* bundlePath = [bundle pathForResource:@"XheyCameraSDKResource" ofType:@"bundle"];
+    if (bundlePath && [bundlePath length] > 0) {
+        return bundlePath;
+    }
+    return nil;
 }
 @end
