@@ -238,8 +238,46 @@
         }
 
         presentedVC = vc;
-        UIViewController* root = [UIApplication sharedApplication].keyWindow.rootViewController;
-        while (root.presentedViewController) root = root.presentedViewController;
+        
+        // Updated logic to handle iOS 13+ SceneDelegate
+        UIViewController* root = nil;
+        UIWindow* window = nil;
+        
+        // Try to get window from Cordova view controller first
+        if (self.viewController.view.window) {
+            window = self.viewController.view.window;
+        } else {
+            // Fallback to key window
+            window = [UIApplication sharedApplication].keyWindow;
+        }
+        
+        // Handle iOS 13+ SceneDelegate
+        if (@available(iOS 13.0, *)) {
+            UIScene *scene = [[UIApplication sharedApplication] connectedScenes].firstObject;
+            if (scene && [scene isKindOfClass:[UIWindowScene class]]) {
+                UIWindowScene *windowScene = (UIWindowScene *)scene;
+                // Find the window with the right scene
+                for (UIWindow *candidateWindow in windowScene.windows) {
+                    if (candidateWindow.isKeyWindow) {
+                        window = candidateWindow;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (window) {
+            root = window.rootViewController;
+        } else {
+            // Fallback to old method
+            root = [UIApplication sharedApplication].keyWindow.rootViewController;
+        }
+        
+        // Navigate to the topmost presented view controller
+        while (root.presentedViewController) {
+            root = root.presentedViewController;
+        }
+        
         if (vc && [root respondsToSelector:@selector(presentViewController:animated:completion:)]) {
             [root presentViewController:vc animated:YES completion:nil];
         } else {
@@ -256,6 +294,52 @@
 
 - (void)takeBurst:(CDVInvokedUrlCommand*)command { [self takePhoto:command]; }
 - (void)startPreview:(CDVInvokedUrlCommand*)command { [self takePhoto:command]; }
+
+// Helper method to get root view controller supporting iOS 13+
+- (UIViewController*)getRootViewController {
+    UIViewController* rootViewController = nil;
+    
+    // Try to get window from Cordova view controller first
+    UIWindow* window = nil;
+    if (self.viewController.view.window) {
+        window = self.viewController.view.window;
+    } else {
+        // Fallback to key window
+        window = [UIApplication sharedApplication].keyWindow;
+    }
+    
+    // Handle iOS 13+ SceneDelegate
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in [[UIApplication sharedApplication] connectedScenes]) {
+            if ([scene isKindOfClass:[UIWindowScene class]] && [scene.role isEqualToString:UISceneSessionRoleApplication]) {
+                UIWindowScene *windowScene = (UIWindowScene *)scene;
+                // Find the window with the right scene
+                for (UIWindow *candidateWindow in windowScene.windows) {
+                    if (candidateWindow.isKeyWindow || (candidateWindow.rootViewController != nil)) {
+                        window = candidateWindow;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    if (window) {
+        rootViewController = window.rootViewController;
+    } else {
+        // Fallback to old method
+        rootViewController = [UIApplication sharedApplication].keyWindow.rootViewController;
+    }
+    
+    // Navigate to the topmost presented view controller
+    if (rootViewController) {
+        while (rootViewController.presentedViewController) {
+            rootViewController = rootViewController.presentedViewController;
+        }
+    }
+    
+    return rootViewController ?: [UIApplication sharedApplication].keyWindow.rootViewController;
+}
 
 - (void)stopPreview:(CDVInvokedUrlCommand*)command {
     Class js = NSClassFromString(@"XHCameraJsBridge");
