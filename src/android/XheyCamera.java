@@ -91,6 +91,24 @@ public class XheyCamera extends CordovaPlugin {
         return null;
     }
 
+    private String resolveOfficialResourceDir(Activity activity) {
+        // Prefer Cordova's typical asset layout under www/, but keep compatibility fallback.
+        if (assetExists(activity, "www/XheyCameraSDKAssets/index.html")) {
+            String path = "file:///android_asset/www/XheyCameraSDKAssets";
+            Log.i(TAG, "resolveOfficialResourceDir: found www path -> " + path);
+            return path;
+        }
+        if (assetExists(activity, "XheyCameraSDKAssets/index.html")) {
+            String path = "file:///android_asset/XheyCameraSDKAssets";
+            Log.i(TAG, "resolveOfficialResourceDir: found root path -> " + path);
+            return path;
+        }
+        // Default to www path for most Cordova projects.
+        String fallback = "file:///android_asset/www/XheyCameraSDKAssets";
+        Log.w(TAG, "resolveOfficialResourceDir: assets index.html not found, using fallback -> " + fallback);
+        return fallback;
+    }
+
     private String readMetaDataString(Activity activity, String... keys) {
         if (activity == null || keys == null || keys.length == 0) return null;
         try {
@@ -801,11 +819,7 @@ public class XheyCamera extends CordovaPlugin {
             try {
                 Activity activity = cordova.getActivity();
                 Intent intent = new Intent();
-                // Use explicit class name so user can override if SDK package differs
-                // The activityClassName is a fully-qualified class name (e.g. com.xhey.xheycamerasdk.CameraActivity).
-                // Use the host app package name as the component package so the merged
-                // manifest entries for the SDK activity are resolved correctly.
-                intent.setClassName(activity.getPackageName(), targetActivityClassName);
+                // Target activity is determined after merged options are prepared.
 
                 // credentials: first try Cordova plugin preferences, then resources, then manifest meta-data
                 String appidVal = null;
@@ -863,6 +877,14 @@ public class XheyCamera extends CordovaPlugin {
                     }
                 }
 
+                // Determine target activity based on useCustomUI parameter.
+                // Default is false to keep official SDK flow when not explicitly enabled.
+                boolean useCustomUI = merged.optBoolean("useCustomUI", false);
+                String targetActivityClassName = useCustomUI ? customActivityClassName : activityClassName;
+                // Use explicit class name so user can override if SDK package differs.
+                // Use host app package so merged manifest component entries resolve correctly.
+                intent.setClassName(activity.getPackageName(), targetActivityClassName);
+
                 // remember last runtime options for onActivityResult handling
                 lastOptions = merged;
                 Log.i(TAG, "Plugin build: " + BUILD_TAG);
@@ -874,9 +896,6 @@ public class XheyCamera extends CordovaPlugin {
                     Log.i(TAG, "resourceDir in merged: " + merged.optString("resourceDir", "null"));
                 } catch (Exception ignore) { }
 
-                // Determine target activity based on useCustomUI parameter
-                boolean useCustomUI = merged.optBoolean("useCustomUI", false);
-                String targetActivityClassName = useCustomUI ? customActivityClassName : activityClassName;
                 Log.i(TAG, "Using activity: " + targetActivityClassName + " (useCustomUI=" + useCustomUI + ")");
 
                 // Set resourceDir based on useCustomUI
@@ -890,14 +909,14 @@ public class XheyCamera extends CordovaPlugin {
                     
                     // If no custom UI found, fall back to default path
                     if (isNullOrEmpty(resourceDir)) {
-                        resourceDir = "file:///android_asset/XheyCameraSDKAssets";
+                        resourceDir = resolveOfficialResourceDir(activity);
                         Log.w(TAG, "No custom UI found, falling back to default path: " + resourceDir);
                     } else {
                         Log.i(TAG, "Using custom UI resourceDir: " + resourceDir);
                     }
                 } else {
                     // Use default official path when useCustomUI is false
-                    resourceDir = "file:///android_asset/XheyCameraSDKAssets";
+                    resourceDir = resolveOfficialResourceDir(activity);
                     Log.i(TAG, "Using default official resourceDir: " + resourceDir);
                 }
                 intent.putExtra(mapKey("resourceDir"), resourceDir);
@@ -1020,14 +1039,14 @@ public class XheyCamera extends CordovaPlugin {
                     
                     // If no custom UI found, fall back to default path
                     if (isNullOrEmpty(resourceDir)) {
-                        resourceDir = "file:///android_asset/XheyCameraSDKAssets";
+                        resourceDir = resolveOfficialResourceDir(activity);
                         Log.w(TAG, "No custom UI found for preview, falling back to default path: " + resourceDir);
                     } else {
                         Log.i(TAG, "Using custom UI resourceDir for preview: " + resourceDir);
                     }
                 } else {
                     // Use default official path when useCustomUI is false
-                    resourceDir = "file:///android_asset/XheyCameraSDKAssets";
+                    resourceDir = resolveOfficialResourceDir(activity);
                     Log.i(TAG, "Using default official resourceDir for preview: " + resourceDir);
                 }
                 intent.putExtra("resourceDir", resourceDir);

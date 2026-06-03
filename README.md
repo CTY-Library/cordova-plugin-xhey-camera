@@ -56,7 +56,7 @@ XheyCamera.takeBurst(3, res=>console.log(res), err=>console.error(err), { return
 
 详细参数见 `www/xhey-camera.js`。
 
-## 自定义水印UI
+## 自定义水印UI (TODO-待完善:需要官方SDK定制开发)
 
 插件支持使用自定义的水印UI界面，通过以下参数控制：
 

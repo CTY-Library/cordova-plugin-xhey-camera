@@ -24,7 +24,7 @@
     <asset src="src/android/assets/XheyCameraSDKAssets" target="XheyCameraSDKAssets" />
 
    
-    <config-file target="app/src/main/AndroidManifest.xml" parent="/manifest">
+    <config-file target="AndroidManifest.xml" parent="/manifest">
       <uses-permission android:name="android.permission.CAMERA" />
       <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
       <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
@@ -35,7 +35,7 @@
 
     <!-- Ensure the SDK Activity is declared in the merged AndroidManifest so explicit
          intents targeting its class can be resolved regardless of host package name. -->
-    <config-file target="app/src/main/AndroidManifest.xml" parent="/manifest/application">
+    <config-file target="AndroidManifest.xml" parent="/manifest/application">
       <activity android:name="com.xhey.xheycamerasdk.CameraActivity" android:exported="false" />
       <activity android:name="org.xhey.cordova.camera.CustomCameraActivity" android:exported="false" />
       <meta-data android:name="APPID" android:value="$APPID" />
